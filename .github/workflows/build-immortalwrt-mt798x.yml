@@ -33,7 +33,8 @@ on:
         type: boolean
 
 env:
-  REPO_URL: https://github.com/hanwckf/immortalwrt-mt798x
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: openwrt-24.10
   FREE_DISK_SH: scripts/free_disk_space.sh
   ENV_SH: scripts/environment.sh
   DIY_SH: scripts/diy.sh
@@ -73,7 +74,7 @@ jobs:
     - name: 克隆源码
       working-directory: /workdir
       run: |
-        git clone $REPO_URL openwrt
+        git clone -b $REPO_BRANCH --single-branch $REPO_URL openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: 开启缓存
@@ -98,24 +99,24 @@ jobs:
         [ -e files ] && mv files openwrt/files
         cat configs/rax3000z-emmc.config >> openwrt/.config
 
-    - name: 设置是否使用 xr30 led dts
-      run: |
-        cp mt7981-cmcc-xr30-emmc.dtsi openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m.dtsi
+    # - name: 设置是否使用 xr30 led dts
+    #   run: |
+    #     cp mt7981-cmcc-xr30-emmc.dtsi openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m.dtsi
 
-    - name: 设置是否使用 nx30pro eeprom
-      if: env.USE_NX30PRO_EEPROM == 'true'
-      run: |
-        mkdir openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware
-        cp eeprom/nx30pro_eeprom.bin openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware/MT7981_iPAiLNA_EEPROM.bin
-        sed -i 's/caldata_extract_mmc/# caldata_extract_mmc/' openwrt/target/linux/mediatek/mt7981/base-files/lib/preinit/90_extract_caldata
-        sed -i 's#./files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin##' openwrt/package/mtk/drivers/mt_wifi/Makefile
+    # - name: 设置是否使用 nx30pro eeprom
+    #   if: env.USE_NX30PRO_EEPROM == 'true'
+    #   run: |
+    #     mkdir openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware
+    #     cp eeprom/nx30pro_eeprom.bin openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware/MT7981_iPAiLNA_EEPROM.bin
+    #     sed -i 's/caldata_extract_mmc/# caldata_extract_mmc/' openwrt/target/linux/mediatek/mt7981/base-files/lib/preinit/90_extract_caldata
+    #     sed -i 's#./files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin##' openwrt/package/mtk/drivers/mt_wifi/Makefile
 
-    - name: 设置 dts 闪存频率
-      if: env.USE_52MHZ == 'true'
-      run: |
-        sed -i -e '/bus-width = <8>;/ a\	cap-mmc-highspeed;' openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
-        sed -i 's/26000000/52000000/g' openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
-        grep max-frequency openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
+    # - name: 设置 dts 闪存频率
+    #   if: env.USE_52MHZ == 'true'
+    #   run: |
+    #     sed -i -e '/bus-width = <8>;/ a\	cap-mmc-highspeed;' openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
+    #     sed -i 's/26000000/52000000/g' openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
+    #     grep max-frequency openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
 
     - name: 下载文件
       run: |
@@ -169,17 +170,18 @@ jobs:
       run: |
         echo -e "### immortalwrt-mt7981-cmcc_rax3000z-emmc" >> release.txt
         
-        eeprom_status=""
-        if [ -e openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware/MT7981_iPAiLNA_EEPROM.bin ] ; then
-          echo "- eeprom 使用 H3C NX30 Pro 提取版本" >> release.txt
-          eeprom_status="nx30pro_eeprom"
-        else
-          echo "- eeprom 未修改" >> release.txt
-          eeprom_status="default_eeprom"
-        fi
-        max_frequency=$(($(grep -oP "max-frequency = <\K[0-9]*" openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts) / 1000000))
-        echo "- 使用闪存频率: ${max_frequency}MHz" >> release.txt
-        release_tag=$(date +"%Y.%m.%d-mt7981-cmcc_rax3000z-emmc-${wlan_luci_interface}-${eeprom_status}-${max_frequency}MHz")
+        # eeprom_status=""
+        # if [ -e openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware/MT7981_iPAiLNA_EEPROM.bin ] ; then
+        #   echo "- eeprom 使用 H3C NX30 Pro 提取版本" >> release.txt
+        #   eeprom_status="nx30pro_eeprom"
+        # else
+        #   echo "- eeprom 未修改" >> release.txt
+        #   eeprom_status="default_eeprom"
+        # fi
+        # max_frequency=$(($(grep -oP "max-frequency = <\K[0-9]*" openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts) / 1000000))
+        # echo "- 使用闪存频率: ${max_frequency}MHz" >> release.txt
+        
+        release_tag=$(date +"%Y.%m.%d-mt7981-cmcc_rax3000z-emmc-openwrt-24.10")
         echo "release_tag=${release_tag}" >> $GITHUB_OUTPUT
         echo "status=success" >> $GITHUB_OUTPUT
 
