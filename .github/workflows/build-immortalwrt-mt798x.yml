@@ -99,24 +99,40 @@ jobs:
         [ -e files ] && mv files openwrt/files
         cat configs/rax3000z-emmc.config >> openwrt/.config
 
-    # - name: 设置是否使用 xr30 led dts
-    #   run: |
-    #     cp mt7981-cmcc-xr30-emmc.dtsi openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m.dtsi
+    - name: 设置是否使用 xr30 led dts
+      run: |
+        # 查找并替换 dts 文件，适配 24.10 目录结构
+        # 注意：这里假设目标文件名为 mt7981b-cmcc-rax3000m.dts，如果不同请根据实际情况调整
+        find openwrt/target/linux/mediatek/dts -name "mt7981b-cmcc-rax3000m.dts" -exec cp mt7981-cmcc-xr30-emmc.dtsi {} \;
 
-    # - name: 设置是否使用 nx30pro eeprom
-    #   if: env.USE_NX30PRO_EEPROM == 'true'
-    #   run: |
-    #     mkdir openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware
-    #     cp eeprom/nx30pro_eeprom.bin openwrt/target/linux/mediatek/mt7981/base-files/lib/firmware/MT7981_iPAiLNA_EEPROM.bin
-    #     sed -i 's/caldata_extract_mmc/# caldata_extract_mmc/' openwrt/target/linux/mediatek/mt7981/base-files/lib/preinit/90_extract_caldata
-    #     sed -i 's#./files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin##' openwrt/package/mtk/drivers/mt_wifi/Makefile
+    - name: 设置是否使用 nx30pro eeprom
+      if: env.USE_NX30PRO_EEPROM == 'true'
+      run: |
+        # 适配 Filogic 目标架构 (OpenWrt 23.05/24.10)
+        mkdir -p openwrt/target/linux/mediatek/filogic/base-files/lib/firmware/mediatek
+        cp eeprom/nx30pro_eeprom.bin openwrt/target/linux/mediatek/filogic/base-files/lib/firmware/mediatek/nx30pro_eeprom.bin
+        
+        # 修改 hotplug 脚本以使用新的 eeprom
+        caldata_file=$(find openwrt/target/linux/mediatek -name "11-mt76-caldata" | head -n 1)
+        if [ -n "$caldata_file" ]; then
+          sed -i -e '/caldata_extract_mmc "factory" 0x0 0x1000/ a\           cp /lib/firmware/mediatek/nx30pro_eeprom.bin /lib/firmware/mediatek/mt7981_eeprom_mt7976_dbdc.bin' "$caldata_file"
+        else
+          echo "Warning: 11-mt76-caldata not found!"
+        fi
 
-    # - name: 设置 dts 闪存频率
-    #   if: env.USE_52MHZ == 'true'
-    #   run: |
-    #     sed -i -e '/bus-width = <8>;/ a\	cap-mmc-highspeed;' openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
-    #     sed -i 's/26000000/52000000/g' openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
-    #     grep max-frequency openwrt/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-cmcc-rax3000m-emmc.dts
+    - name: 设置 dts 闪存频率
+      if: env.USE_52MHZ == 'true'
+      run: |
+        # 查找 dts 文件 (尝试匹配 emmc 版本)
+        dts_file=$(find openwrt/target/linux/mediatek/dts -name "*rax3000m*emmc.dts*" | head -n 1)
+        if [ -n "$dts_file" ]; then
+          echo "Found DTS file: $dts_file"
+          sed -i -e '/bus-width = <8>;/ a\	cap-mmc-highspeed;' "$dts_file"
+          sed -i 's/26000000/52000000/g' "$dts_file"
+          grep max-frequency "$dts_file"
+        else
+           echo "Warning: DTS file for 52MHz modification not found!"
+        fi
 
     - name: 下载文件
       run: |
